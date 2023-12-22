@@ -38,16 +38,13 @@ fun main() {
 
     fun List<String>.seeds() = this[0].split(": ")[1].split(' ').map { it.toLong() }
 
-    fun Long.correspondingNumber(from: List<MapRange>) =
-        from.firstNotNullOfOrNull {
-            when {
-                this in it.source -> this - it.source.first + it.dest.first
-                else -> null
-            }
-        } ?: this
+    fun List<MapRange>.correspondingNumberFor(n: Long) =
+        find { n in it.source}
+            ?.let { it.dest.first + (n - it.source.first) }
+            ?: n
 
     fun Long.getLocation(mapRanges: Map<MapType, List<MapRange>>) =
-        MapType.entries.fold(this) { acc, mapType -> acc.correspondingNumber(mapRanges[mapType]!!) }
+        MapType.entries.map { mapRanges[it]!! }.fold(this) { acc, mapRange -> mapRange.correspondingNumberFor(acc) }
 
     fun part1(almanac: List<String>): Long =
         almanac.getMapTypeToMapRanges().let { mapRanges: Map<MapType, List<MapRange>> ->
@@ -58,28 +55,8 @@ fun main() {
         val mapRanges = almanac.getMapTypeToMapRanges()
 
         fun getMinLocation(longRange: LongRange): Long {
-            for (mapType in MapType.entries) {
-                val intersectingRanges =
-                    mapRanges[mapType]!!.filter { longRange.first in it.source || longRange.last in it.source }
-                val matchingSubRanges = mutableListOf<LongRange>()
-                for (it in intersectingRanges) {
-                    if (longRange.first in it.source) {
-                        if (longRange.last in it.source) {
-                            matchingSubRanges.add(longRange.first + it.length..longRange.last + it.length)
-                            break
-                        } else {
-                            matchingSubRanges.add(longRange.first + it.length..it.dest.last)
-                        }
-                    } else if (longRange.last in it.source) {
-                        matchingSubRanges.add(longRange.first + it.length..it.dest.last)
-                    }
-                }
-            }
-
             fun LongRange.getCorrespondingRanges(mapType: MapType): List<LongRange> {
-                val intersectingRanges =
-                    mapRanges[mapType]!!//.filter { longRange.first in it.source || longRange.last in it.source }
-                        .sortedBy { it.source.first }
+                val intersectingRanges = mapRanges[mapType]!!.sortedBy { it.source.first }
                 val matchingSubRanges = mutableListOf<LongRange>()
                 var remainingRange: LongRange? = this
                 for (it in intersectingRanges) {
