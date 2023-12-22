@@ -1,6 +1,3 @@
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-
 enum class MapType {
     `seed-to-soil`,
     `soil-to-fertilizer`,
@@ -120,9 +117,7 @@ fun main() {
 
             var finalRanges = listOf(longRange)
             for (mapType in MapType.entries) {
-                finalRanges = finalRanges.flatMap {
-                    it.getCorrespondingRanges(mapType)
-                }
+                finalRanges = finalRanges.flatMap { it.getCorrespondingRanges(mapType) }
             }
             return finalRanges.minOf { it.first }
         }
@@ -130,11 +125,7 @@ fun main() {
         val seedsRanges =
             almanac.seeds().chunked(2).map { (start, range) -> start until (start + range) }
 
-        return runBlocking(Dispatchers.Default) {
-            seedsRanges.minOf { range ->
-                getMinLocation(range)
-            }
-        }
+        return seedsRanges.minOf { range -> getMinLocation(range) }
     }
 
     val part1TestInput = """
@@ -177,6 +168,6 @@ fun main() {
     check(part2(part1TestInput).also { println("Part 2 Test: $it") } == 46L)
 
     val input = readInput("inputDay5")
-    part1(input).also { println("Part 1: $it") } // 240320250
-    part2(input).also { println("Part 2: $it") } // 28580589
+    part1(input).also { println("Part 1: $it") }
+    part2(input).also { println("Part 2: $it") }
 }
