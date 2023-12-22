@@ -1,3 +1,6 @@
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+
 enum class MapType {
     `seed-to-soil`,
     `soil-to-fertilizer`,
@@ -9,46 +12,129 @@ enum class MapType {
 }
 
 fun main() {
-    data class MapRange(val source: LongRange, val dest: LongRange)
+    data class MapRange(val source: LongRange, val dest: LongRange, val length: Long)
 
-    fun part1(almanac: List<String>): Long {
-        val seeds = almanac[0].split(": ")[1].split(' ').map(String::toLong)
+    fun getNextMaxRanges(almanacPortion: List<String>) = buildList {
+        for (line in almanacPortion) {
+            if (line.getOrNull(0)?.isDigit() != true)
+                break
 
-        val mapRanges = mutableMapOf<MapType, List<MapRange>>()
-
-        var i = 2
-        fun getMap(): List<MapRange> = buildList {
-            i++
-            while (!almanac.getOrNull(i).isNullOrBlank()) {
-                val (destStart, sourceStart, range) = almanac[i++].split(' ').map(String::toLong)
-                add(
-                    MapRange(
-                        source = sourceStart until (sourceStart + range),
-                        dest = destStart until (destStart + range),
-                    )
+            val (destStart, sourceStart, length) = line.split(' ').map { it.toLong() }
+            add(
+                MapRange(
+                    source = sourceStart until (sourceStart + length),
+                    dest = destStart until (destStart + length),
+                    length = length,
                 )
-            }
+            )
         }
-
-        while (i < almanac.size) {
-            val mapTitle = almanac[i]
-
-            MapType.entries.find { mapTitle.startsWith(it.name) }
-                ?.let { mapType -> mapRanges[mapType] = getMap().also { println("$mapType $it") } }
-                ?: i++
-        }
-
-        fun Long.correspondingNumber(from: List<MapRange>): Long =
-            from.find { this in it.source }?.let { it.dest.elementAt(it.source.indexOf(this)) } ?: this
-
-        fun Long.getLocation(): Long =
-            MapType.entries.fold(this) { acc, mapType -> acc.correspondingNumber(mapRanges[mapType]!!) }
-
-        return seeds.minOf { seed -> seed.getLocation().also { println("$seed $it") } }
     }
 
+    fun List<String>.getMapTypeToMapRanges() = buildMap {
+        for ((ind, line) in withIndex()) {
+            MapType.entries.find { line.startsWith(it.name) }
+                ?.let { mapType: MapType ->
+                    put(mapType, getNextMaxRanges(drop(ind + 1)))
+                }
+        }
+    }
+
+    fun List<String>.seeds() = this[0].split(": ")[1].split(' ').map { it.toLong() }
+
+    fun Long.correspondingNumber(from: List<MapRange>) =
+        from.firstNotNullOfOrNull {
+            when {
+                this in it.source -> this - it.source.first + it.dest.first
+                else -> null
+            }
+        } ?: this
+
+    fun Long.getLocation(mapRanges: Map<MapType, List<MapRange>>) =
+        MapType.entries.fold(this) { acc, mapType -> acc.correspondingNumber(mapRanges[mapType]!!) }
+
+    fun part1(almanac: List<String>): Long =
+        almanac.getMapTypeToMapRanges().let { mapRanges: Map<MapType, List<MapRange>> ->
+            almanac.seeds().minOf { it.getLocation(mapRanges) }
+        }
+
     fun part2(almanac: List<String>): Long {
-        return 0
+        val mapRanges = almanac.getMapTypeToMapRanges()
+
+        fun getMinLocation(longRange: LongRange): Long {
+            for (mapType in MapType.entries) {
+                val intersectingRanges =
+                    mapRanges[mapType]!!.filter { longRange.first in it.source || longRange.last in it.source }
+                val matchingSubRanges = mutableListOf<LongRange>()
+                for (it in intersectingRanges) {
+                    if (longRange.first in it.source) {
+                        if (longRange.last in it.source) {
+                            matchingSubRanges.add(longRange.first + it.length..longRange.last + it.length)
+                            break
+                        } else {
+                            matchingSubRanges.add(longRange.first + it.length..it.dest.last)
+                        }
+                    } else if (longRange.last in it.source) {
+                        matchingSubRanges.add(longRange.first + it.length..it.dest.last)
+                    }
+                }
+            }
+
+            fun LongRange.getCorrespondingRanges(mapType: MapType): List<LongRange> {
+                val intersectingRanges =
+                    mapRanges[mapType]!!//.filter { longRange.first in it.source || longRange.last in it.source }
+                        .sortedBy { it.source.first }
+                val matchingSubRanges = mutableListOf<LongRange>()
+                var remainingRange: LongRange? = this
+                for (it in intersectingRanges) {
+                    remainingRange ?: break
+                    remainingRange = when {
+                        remainingRange.first in it.source && remainingRange.last in it.source -> {
+                            val start = it.dest.first + (remainingRange.first - it.source.first)
+                            val end = it.dest.last - (it.source.last - remainingRange.last)
+                            matchingSubRanges.add(start..end)
+                            null
+                        }
+
+                        remainingRange.first in it.source -> {
+                            val start = it.dest.first + (remainingRange.first - it.source.first)
+                            val end = it.dest.last
+                            matchingSubRanges.add(start..end)
+                            it.source.last + 1..remainingRange.last
+                        }
+
+                        remainingRange.last in it.source -> {
+                            val start = it.dest.first
+                            val end = it.dest.last - (it.source.last - remainingRange.last)
+                            matchingSubRanges.add(start..end)
+                            remainingRange.first..<it.source.first
+                        }
+
+                        else -> {
+                            remainingRange
+                        }
+                    }
+                }
+                remainingRange?.let { matchingSubRanges.add(it) }
+                return matchingSubRanges
+            }
+
+            var finalRanges = listOf(longRange)
+            for (mapType in MapType.entries) {
+                finalRanges = finalRanges.flatMap {
+                    it.getCorrespondingRanges(mapType)
+                }
+            }
+            return finalRanges.minOf { it.first }
+        }
+
+        val seedsRanges =
+            almanac.seeds().chunked(2).map { (start, range) -> start until (start + range) }
+
+        return runBlocking(Dispatchers.Default) {
+            seedsRanges.minOf { range ->
+                getMinLocation(range)
+            }
+        }
     }
 
     val part1TestInput = """
@@ -88,9 +174,9 @@ fun main() {
         """.trimIndent().lines()
 
     check(part1(part1TestInput).also { println("Part 1 Test: $it") } == 35L)
-//    check(part2(part1TestInput).also { println("Part 2 Test: $it") } == 30)
+    check(part2(part1TestInput).also { println("Part 2 Test: $it") } == 46L)
 
     val input = readInput("inputDay5")
-    part1(input).also { println("Part 1: $it") }
-//    part2(input).also { println("Part 2: $it") }
+    part1(input).also { println("Part 1: $it") } // 240320250
+    part2(input).also { println("Part 2: $it") } // 28580589
 }
