@@ -1,4 +1,4 @@
-enum class MapType {
+private enum class MapType {
     `seed-to-soil`,
     `soil-to-fertilizer`,
     `fertilizer-to-water`,

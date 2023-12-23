@@ -47,5 +47,5 @@ private fun checkWindowSizeStep(size: Int, step: Int) {
     }
 }
 
-fun CharSequence.splitNTrim(delimiters: Char, limit: Int = 0): List<String> =
-    split(delimiters, limit = limit).map(String::trim)
+fun CharSequence.splitNTrim(delimiter: Char, limit: Int = 0): List<String> =
+    split(delimiter, limit = limit).map(String::trim)
