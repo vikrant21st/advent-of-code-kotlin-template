@@ -6,7 +6,7 @@ import kotlin.io.path.readLines
 /**
  * Reads lines from the given input txt file.
  */
-fun readInput(name: String) = Path("$name.txt").readLines()
+fun readInput(name: String) = Path("src/$name.txt").readLines()
 
 /**
  * Converts string to md5 hash.
@@ -49,3 +49,12 @@ private fun checkWindowSizeStep(size: Int, step: Int) {
 
 fun CharSequence.splitNTrim(delimiter: Char, limit: Int = 0): List<String> =
     split(delimiter, limit = limit).map(String::trim)
+
+fun Iterable<Long>.lcm(): Long {
+    val minValue = min()
+    var lcmN = min()
+    while (!all { lcmN % it == 0L })
+        lcmN += minValue
+
+    return lcmN
+}
