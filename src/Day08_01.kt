@@ -15,14 +15,13 @@ fun main() {
     ): Long {
         var currentNode = startNode
         var cnt = 0L
-        while (true) {
-            for (instruction in instructions) {
-                cnt++
-                currentNode = network[currentNode]!![instruction]
-                if (isTarget(currentNode))
-                    return cnt
-            }
+        for (instruction in instructions.asCircularSequence()) {
+            cnt++
+            currentNode = network[currentNode]!![instruction]
+            if (isTarget(currentNode))
+                break
         }
+        return cnt
     }
 
     fun part1(input: List<String>): Long {

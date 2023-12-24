@@ -58,3 +58,13 @@ fun Iterable<Long>.lcm(): Long {
 
     return lcmN
 }
+
+fun <T> Iterable<T>.asCircularSequence(): Sequence<T> {
+    var itr = iterator()
+    if (!itr.hasNext()) emptySequence<T>()
+    return generateSequence(itr.next()) {
+        if (!itr.hasNext())
+            itr = iterator()
+        itr.next()
+    }
+}
